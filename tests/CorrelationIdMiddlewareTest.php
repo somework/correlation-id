@@ -20,14 +20,17 @@ final class CorrelationIdMiddlewareTest extends TestCase
         $request = new ServerRequest('GET', '/');
         $request = $request->withHeader('X-Correlation-ID', 'abc');
         $handler = new class extends \Nyholm\Psr7\Response implements \Psr\Http\Server\RequestHandlerInterface {
+            public ?string $capturedId = null;
             public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
             {
+                $this->capturedId = CorrelationIdProvider::get();
                 return new Response();
             }
         };
         $response = $middleware->process($request, $handler);
-        self::assertSame('abc', CorrelationIdProvider::get());
+        self::assertSame('abc', $handler->capturedId);
         self::assertSame('abc', $response->getHeaderLine('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
     }
 
     public function testGeneratesIdWhenHeaderMissing(): void
@@ -36,15 +39,17 @@ final class CorrelationIdMiddlewareTest extends TestCase
         $middleware = new CorrelationIdMiddleware(null, $generator);
         $request = new ServerRequest('GET', '/');
         $handler = new class extends \Nyholm\Psr7\Response implements \Psr\Http\Server\RequestHandlerInterface {
+            public ?string $capturedId = null;
             public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
             {
+                $this->capturedId = CorrelationIdProvider::get();
                 return new Response();
             }
         };
         $response = $middleware->process($request, $handler);
-        $id = CorrelationIdProvider::get();
-        self::assertNotEmpty($id);
-        self::assertSame($id, $response->getHeaderLine('X-Correlation-ID'));
+        self::assertNotEmpty($handler->capturedId);
+        self::assertSame($handler->capturedId, $response->getHeaderLine('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
     }
 
     public function testLoggerReceivesCorrelationId(): void
@@ -65,15 +70,22 @@ final class CorrelationIdMiddlewareTest extends TestCase
         $decorated = $middleware->getLogger();
         $request = new ServerRequest('GET', '/');
         $handler = new class($decorated) extends \Nyholm\Psr7\Response implements \Psr\Http\Server\RequestHandlerInterface {
-            public function __construct(private $logger) {}
+            private $logger;
+            public ?string $capturedId = null;
+            public function __construct($logger)
+            {
+                $this->logger = $logger;
+            }
             public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
             {
+                $this->capturedId = CorrelationIdProvider::get();
                 $this->logger->info('test');
                 return new Response();
             }
         };
         $middleware->process($request, $handler);
         self::assertArrayHasKey('correlation_id', $logger->context);
-        self::assertSame(CorrelationIdProvider::get(), $logger->context['correlation_id']);
+        self::assertSame($handler->capturedId, $logger->context['correlation_id']);
+        self::assertSame('', CorrelationIdProvider::get());
     }
 }

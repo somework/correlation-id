@@ -35,6 +35,7 @@ final class CorrelationIdSubscriberTest extends TestCase
         $subscriber->onResponse($responseEvent);
 
         self::assertSame('abc', $responseEvent->getResponse()->headers->get('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
     }
 
     public function testGeneratesIdWhenHeaderMissing(): void
@@ -55,5 +56,6 @@ final class CorrelationIdSubscriberTest extends TestCase
         $subscriber->onResponse($responseEvent);
 
         self::assertSame($id, $responseEvent->getResponse()->headers->get('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
     }
 }

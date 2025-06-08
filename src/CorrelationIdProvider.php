@@ -17,4 +17,9 @@ final class CorrelationIdProvider
     {
         return self::$correlationId;
     }
+
+    public static function clear(): void
+    {
+        self::$correlationId = '';
+    }
 }
