@@ -3,6 +3,12 @@
   "description": "Minimalistic middleware for correlation IDs",
   "type": "library",
   "license": "MIT",
+  "authors": [
+    {
+      "name": "Igor Pinchuk",
+      "email": "i.pinchuk.work@gmail.com"
+    }
+  ],
   "require": {
     "php": ">=8.1",
     "symfony/http-foundation": "^6.0 || ^7.0",
