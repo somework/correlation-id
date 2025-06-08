@@ -41,6 +41,7 @@ final class CorrelationIdSubscriber implements EventSubscriberInterface
         if (!$response->headers->has('X-Correlation-ID')) {
             $response->headers->set('X-Correlation-ID', $id);
         }
+        CorrelationIdProvider::clear();
     }
 
     private function extractId(Request $request): string

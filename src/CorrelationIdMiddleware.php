@@ -33,6 +33,7 @@ final class CorrelationIdMiddleware implements MiddlewareInterface
         if (!$response->hasHeader(self::HEADER_NAMES[0])) {
             $response = $response->withHeader(self::HEADER_NAMES[0], $id);
         }
+        CorrelationIdProvider::clear();
         return $response;
     }
 
