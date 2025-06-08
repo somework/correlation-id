@@ -88,4 +88,41 @@ final class CorrelationIdMiddlewareTest extends TestCase
         self::assertSame($handler->capturedId, $logger->context['correlation_id']);
         self::assertSame('', CorrelationIdProvider::get());
     }
+
+    public function testUsesCustomHeader(): void
+    {
+        $middleware = new CorrelationIdMiddleware();
+        $request = new ServerRequest('GET', '/');
+        $request = $request->withHeader('X-Request-ID', 'custom');
+        $handler = new class extends Response implements \Psr\Http\Server\RequestHandlerInterface {
+            public ?string $capturedId = null;
+            public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
+            {
+                $this->capturedId = CorrelationIdProvider::get();
+                return new Response();
+            }
+        };
+        $response = $middleware->process($request, $handler);
+        self::assertSame('custom', $handler->capturedId);
+        self::assertSame('custom', $response->getHeaderLine('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
+    }
+
+    public function testWorksWithoutLogger(): void
+    {
+        $middleware = new CorrelationIdMiddleware(new \Psr\Log\NullLogger());
+        $request = new ServerRequest('GET', '/');
+        $handler = new class extends Response implements \Psr\Http\Server\RequestHandlerInterface {
+            public ?string $capturedId = null;
+            public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
+            {
+                $this->capturedId = CorrelationIdProvider::get();
+                return new Response();
+            }
+        };
+        $response = $middleware->process($request, $handler);
+        self::assertNotEmpty($handler->capturedId);
+        self::assertSame($handler->capturedId, $response->getHeaderLine('X-Correlation-ID'));
+        self::assertSame('', CorrelationIdProvider::get());
+    }
 }
