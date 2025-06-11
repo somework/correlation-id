@@ -33,6 +33,21 @@ use SomeWork\CorrelationId\CorrelationIdProvider;
 $id = CorrelationIdProvider::get();
 ```
 
+## Reactive frameworks
+
+The `CorrelationIdProvider` stores the ID separately for each fiber. When using
+event loop based frameworks like ReactPHP or AMPHP, every request handled in its
+own fiber automatically receives an isolated correlation ID.
+
+```php
+$server = new React\Http\HttpServer(function (Psr\Http\Message\ServerRequestInterface $request) use ($middleware) {
+    return $middleware->process($request, $yourHandler);
+});
+```
+
+Each concurrent request will have access to its own correlation ID through
+`CorrelationIdProvider::get()`.
+
 ## Custom ID Generator
 
 Provide your own generator by implementing `IdGeneratorInterface` and passing it to the middleware.
