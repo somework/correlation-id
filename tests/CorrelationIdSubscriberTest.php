@@ -58,4 +58,47 @@ final class CorrelationIdSubscriberTest extends TestCase
         self::assertSame($id, $responseEvent->getResponse()->headers->get('X-Correlation-ID'));
         self::assertSame('', CorrelationIdProvider::get());
     }
+
+    public function testIsolationBetweenFibers(): void
+    {
+        $middleware = new CorrelationIdMiddleware();
+        $subscriber = new CorrelationIdSubscriber($middleware);
+
+        $kernel = $this->createMock(HttpKernelInterface::class);
+        $results = [];
+
+        $fiber1 = new \Fiber(function () use ($subscriber, $kernel, &$results): void {
+            $request = new Request();
+            $request->headers->set('X-Correlation-ID', 'one');
+
+            $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+            $subscriber->onRequest($event);
+            $results[] = CorrelationIdProvider::get();
+
+            $response = new Response();
+            $responseEvent = new ResponseEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST, $response);
+            $subscriber->onResponse($responseEvent);
+            $results[] = $responseEvent->getResponse()->headers->get('X-Correlation-ID');
+        });
+
+        $fiber2 = new \Fiber(function () use ($subscriber, $kernel, &$results): void {
+            $request = new Request();
+            $request->headers->set('X-Correlation-ID', 'two');
+
+            $event = new RequestEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST);
+            $subscriber->onRequest($event);
+            $results[] = CorrelationIdProvider::get();
+
+            $response = new Response();
+            $responseEvent = new ResponseEvent($kernel, $request, HttpKernelInterface::MAIN_REQUEST, $response);
+            $subscriber->onResponse($responseEvent);
+            $results[] = $responseEvent->getResponse()->headers->get('X-Correlation-ID');
+        });
+
+        $fiber1->start();
+        $fiber2->start();
+
+        self::assertSame(['one', 'one', 'two', 'two'], $results);
+        self::assertSame('', CorrelationIdProvider::get());
+    }
 }

@@ -125,4 +125,41 @@ final class CorrelationIdMiddlewareTest extends TestCase
         self::assertSame($handler->capturedId, $response->getHeaderLine('X-Correlation-ID'));
         self::assertSame('', CorrelationIdProvider::get());
     }
+
+    public function testIsolationBetweenFibers(): void
+    {
+        $middleware = new CorrelationIdMiddleware();
+        $results = [];
+
+        $handlerFactory = static function (array &$results) {
+            return new class($results) extends Response implements \Psr\Http\Server\RequestHandlerInterface {
+                private array $results;
+                public function __construct(array &$results)
+                {
+                    $this->results = &$results;
+                }
+                public function handle(\Psr\Http\Message\ServerRequestInterface $request): \Psr\Http\Message\ResponseInterface
+                {
+                    $this->results[] = CorrelationIdProvider::get();
+                    return new Response();
+                }
+            };
+        };
+
+        $fiber1 = new \Fiber(function () use ($middleware, &$results, $handlerFactory): void {
+            $request = (new ServerRequest('GET', '/'))->withHeader('X-Correlation-ID', 'one');
+            $middleware->process($request, $handlerFactory($results));
+        });
+
+        $fiber2 = new \Fiber(function () use ($middleware, &$results, $handlerFactory): void {
+            $request = (new ServerRequest('GET', '/'))->withHeader('X-Correlation-ID', 'two');
+            $middleware->process($request, $handlerFactory($results));
+        });
+
+        $fiber1->start();
+        $fiber2->start();
+
+        self::assertSame(['one', 'two'], $results);
+        self::assertSame('', CorrelationIdProvider::get());
+    }
 }
