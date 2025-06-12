@@ -35,9 +35,11 @@ $id = CorrelationIdProvider::get();
 
 ## Reactive frameworks
 
-The `CorrelationIdProvider` stores the ID separately for each fiber. When using
-event loop based frameworks like ReactPHP or AMPHP, every request handled in its
-own fiber automatically receives an isolated correlation ID.
+The `CorrelationIdProvider` uses a fiber-aware storage backed by `WeakMap`. The
+ID is stored separately for each running fiber and falls back to synchronous
+storage when no fiber is active. When using event loop based frameworks like
+ReactPHP or AMPHP, every request handled in its own fiber automatically
+receives an isolated correlation ID.
 
 ```php
 $server = new React\Http\HttpServer(function (Psr\Http\Message\ServerRequestInterface $request) use ($middleware) {

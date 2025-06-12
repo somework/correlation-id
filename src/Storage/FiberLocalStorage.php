@@ -5,13 +5,19 @@ declare(strict_types=1);
 namespace SomeWork\CorrelationId\Storage;
 
 use Fiber;
+use WeakMap;
 
 final class FiberLocalStorage implements CorrelationIdStorageInterface
 {
-    /** @var array<int, string> */
-    private array $fiberStorage = [];
+    /** @var WeakMap<object, string> */
+    private WeakMap $fiberStorage;
 
     private string $syncStorage = '';
+
+    public function __construct()
+    {
+        $this->fiberStorage = new WeakMap();
+    }
 
     public function set(string $id): void
     {
@@ -20,7 +26,7 @@ final class FiberLocalStorage implements CorrelationIdStorageInterface
             $this->syncStorage = $id;
             return;
         }
-        $this->fiberStorage[spl_object_id($fiber)] = $id;
+        $this->fiberStorage[$fiber] = $id;
     }
 
     public function get(): string
@@ -29,7 +35,7 @@ final class FiberLocalStorage implements CorrelationIdStorageInterface
         if ($fiber === null) {
             return $this->syncStorage;
         }
-        return $this->fiberStorage[spl_object_id($fiber)] ?? '';
+        return $this->fiberStorage[$fiber] ?? '';
     }
 
     public function clear(): void
@@ -39,6 +45,6 @@ final class FiberLocalStorage implements CorrelationIdStorageInterface
             $this->syncStorage = '';
             return;
         }
-        unset($this->fiberStorage[spl_object_id($fiber)]);
+        unset($this->fiberStorage[$fiber]);
     }
 }
